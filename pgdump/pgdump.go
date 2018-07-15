@@ -6,10 +6,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 )
 
 // Options type controls how INSERT statements are constructed.
 type Options struct {
+	// Custom SELECT query. Defaults to fetch all rows. Can also just specify
+	// the WHERE clause, it wil be appended to the default query.
+	Query string
+
 	// Which columns to include in INSERT statement. Defaults to all columns if empty.
 	InsertColumns []string
 
@@ -43,7 +48,14 @@ func Dump(writer io.Writer, db *sql.DB, table string, opts *Options) error {
 	}
 
 	// Query rows to dump
-	st := getQueryStatement(db, table, cols)
+	st := opts.Query
+
+	if st == "" {
+		st = getQueryStatement(db, table, cols)
+	} else if strings.HasPrefix(strings.ToUpper(st), "WHERE") {
+		where := st
+		st = getQueryStatement(db, table, cols) + " " + where
+	}
 
 	if opts.Verbose {
 		log.Println(st)
@@ -58,6 +70,7 @@ func Dump(writer io.Writer, db *sql.DB, table string, opts *Options) error {
 	defer rows.Close()
 
 	dest := getScanDest(cols)
+	count := 0
 
 	for rows.Next() {
 		if err := rows.Scan(dest...); err != nil {
@@ -66,6 +79,11 @@ func Dump(writer io.Writer, db *sql.DB, table string, opts *Options) error {
 		// Output INSERT statements
 		st := getInsertStatement(table, cols, opts)
 		writer.Write([]byte(st))
+		count++
+	}
+
+	if opts.Verbose {
+		log.Printf("Fetched %d rows", count)
 	}
 
 	return rows.Err()

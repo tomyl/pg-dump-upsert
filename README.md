@@ -31,6 +31,8 @@ Usage of pg-dump-upsert:
         Comma-separated list of columns to include in INSERT statement. Defaults to all columns.
   -noconflict
         Append ON CONFLICT DO NOTHING.
+  -query string
+        Use custom SELECT query. By default fetches all rows. Note that column order must match -insert-columns. It is also valid to just specify a WHERE clause. It will be appended to the default query.
   -table string
         Table to dump.
   -tx
@@ -45,7 +47,7 @@ Dump all rows in table `employee`:
 
 ```bash
 $ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee 
-INSERT INTO source (id, created_at, name) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe');
+INSERT INTO source (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456);
 ...
 ```
 
@@ -61,7 +63,7 @@ Ignore conflicts:
 
 ```bash
 $ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -noconflict
-INSERT INTO source (id, created_at, name) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe') ON CONFLICT DO NOTHING;
+INSERT INTO source (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe' 123456) ON CONFLICT DO NOTHING;
 ...
 ```
 
@@ -69,7 +71,15 @@ Update columns on conflict:
 
 ```bash
 $ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -conflict-column id
-INSERT INTO source (id, created_at, name) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe') ON CONFLICT (id) DO UPDATE SET created_at=EXCLUDED.created_at, name=EXCLUDED.name;
+INSERT INTO source (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456) ON CONFLICT (id) DO UPDATE SET created_at=EXCLUDED.created_at, name=EXCLUDED.name;
+...
+```
+
+Fetch a subset of the rows:
+
+```bash
+$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -query "WHERE salary > 12345"
+INSERT INTO source (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456);
 ...
 ```
 
@@ -78,7 +88,6 @@ To restore a dump, simply use the `\i` command in `psql`.
 # TODO
 - [ ] Implement support for all Postgres data types.
 - [ ] Allow which columns to update when specifying `-conflict-column`?
-- [ ] Allow specify `SELECT` query or `WHERE` clause?
 - [ ] Properly quote identifiers.
 - [ ] Unit tests would be nice...
 - [ ] Finish this TODO list.
