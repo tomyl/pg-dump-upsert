@@ -178,7 +178,7 @@ func quoteString(s string) string {
 }
 
 // getColumns fetches column list for table from database.
-func getColumns(db *sql.DB, table string) ([]column, error) {
+func getColumns(db *sql.DB, table string, opts *Options) ([]column, error) {
 	rows, err := db.Query("select column_name, data_type, is_nullable from information_schema.columns where table_name=$1", table)
 
 	if err != nil {
@@ -198,10 +198,26 @@ func getColumns(db *sql.DB, table string) ([]column, error) {
 		if nullable == "YES" {
 			col.Nullable = true
 		}
-		// FIXME: don't bind/add all columns if -insert is used
-		col.bind()
-		cols = append(cols, col)
+		if shouldFetchColumn(col.Name, opts) {
+			col.bind()
+			cols = append(cols, col)
+		}
 	}
 
 	return cols, rows.Err()
+}
+
+func shouldFetchColumn(name string, opts *Options) bool {
+	if len(opts.InsertColumns) == 0 {
+		// No columns specified, fetch all!
+		return true
+	}
+
+	for _, col := range opts.InsertColumns {
+		if col == name {
+			return true
+		}
+	}
+
+	return false
 }

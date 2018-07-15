@@ -35,6 +35,8 @@ Usage of pg-dump-upsert:
         Table to dump.
   -tx
         Wrap INSERT statements in transaction.
+  -verbose
+        Log query statement to stderr.
 ```
 
 # Examples

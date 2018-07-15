@@ -18,6 +18,7 @@ func main() {
 	conflict := flag.String("conflict-column", "", "Append an ON CONFLICT clause for this column. All other columns will be included in a DO UPDATE SET list.")
 	noconflict := flag.Bool("noconflict", false, "Append ON CONFLICT DO NOTHING.")
 	tx := flag.Bool("tx", false, "Wrap INSERT statements in transaction.")
+	verbose := flag.Bool("verbose", false, "Log query statement to stderr.")
 	flag.Parse()
 
 	if *dsn == "" {
@@ -35,6 +36,7 @@ func main() {
 	var opts pgdump.Options
 	opts.ConflictColumn = strings.TrimSpace(*conflict)
 	opts.NoConflict = *noconflict
+	opts.Verbose = *verbose
 
 	if *insert != "" {
 		for _, col := range strings.Split(*insert, ",") {

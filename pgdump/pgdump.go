@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"log"
 )
 
 // Options type controls how INSERT statements are constructed.
@@ -18,6 +19,9 @@ type Options struct {
 
 	// Append ON CONFLICT DO NOTHING clause.
 	NoConflict bool
+
+	// Log query statement to stderr.
+	Verbose bool
 }
 
 // Dump outputs INSERT statements for all rows in specified table.
@@ -27,7 +31,7 @@ func Dump(writer io.Writer, db *sql.DB, table string, opts *Options) error {
 	}
 
 	// Ask database for column list for this table
-	cols, err := getColumns(db, table)
+	cols, err := getColumns(db, table, opts)
 
 	if err != nil {
 		return err
@@ -40,6 +44,11 @@ func Dump(writer io.Writer, db *sql.DB, table string, opts *Options) error {
 
 	// Query rows to dump
 	st := getQueryStatement(db, table, cols)
+
+	if opts.Verbose {
+		log.Println(st)
+	}
+
 	rows, err := db.Query(st)
 
 	if err != nil {
