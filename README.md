@@ -22,13 +22,13 @@ seemingly unrelated failures.
 ```bash
 $ go get github.com/tomyl/pg-dump-upsert
 $ ~/go/bin/pg-dump-upsert -h
-Usage of go/bin/pg-dump-upsert:
+Usage of pg-dump-upsert:
   -conflict-column string
         Append an ON CONFLICT clause for this column. All other columns will be included in a DO UPDATE SET list.
   -dsn string
-        Connection string. Example: postgres://user:password@localhost:5432/db?sslmode=disable
-  -insert string
-        What columns to include in INSERT statement. Defaults to all columns
+        Connection string. Example: postgres://user:password@host:5432/db
+  -insert-columns string
+        Comma-separated list of columns to include in INSERT statement. Defaults to all columns.
   -noconflict
         Append ON CONFLICT DO NOTHING.
   -table string
@@ -37,7 +37,7 @@ Usage of go/bin/pg-dump-upsert:
         Wrap INSERT statements in transaction.
 ```
 
-# Usage
+# Examples
 
 Dump all rows in table `employee`:
 
