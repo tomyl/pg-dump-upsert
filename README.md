@@ -1,4 +1,4 @@
-# pg-dump-upsert
+# pg-dump-upsert :elephant::poop:
 
 [![Build Status](https://travis-ci.org/tomyl/pg-dump-upsert.svg?branch=master)](https://travis-ci.org/tomyl/pg-dump-upsert)
 [![GoDoc](https://godoc.org/github.com/tomyl/pg-dump-upsert/pgdump?status.png)](http://godoc.org/github.com/tomyl/pg-dump-upsert/pgdump)
