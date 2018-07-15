@@ -5,6 +5,7 @@ import (
 	"database/sql"
 )
 
+// getQueryStatement returns SELECT statement to retrieve rows to dump.
 func getQueryStatement(db *sql.DB, table string, cols []column) string {
 	var buf bytes.Buffer
 	buf.WriteString("SELECT ")
@@ -12,7 +13,7 @@ func getQueryStatement(db *sql.DB, table string, cols []column) string {
 	count := 0
 
 	for _, col := range cols {
-		if col.Insert {
+		if col.insert {
 			if count > 0 {
 				buf.WriteString(", ")
 			}
@@ -26,6 +27,8 @@ func getQueryStatement(db *sql.DB, table string, cols []column) string {
 	return buf.String()
 }
 
+// getInsertStatement returns INSERT statment to output for row currently
+// loaded in to cols slice.
 func getInsertStatement(table string, cols []column, opts *Options) string {
 	var buf bytes.Buffer
 
@@ -33,7 +36,7 @@ func getInsertStatement(table string, cols []column, opts *Options) string {
 	count := 0
 
 	for _, col := range cols {
-		if col.Insert {
+		if col.insert {
 			if count > 0 {
 				buf.WriteString(", ")
 			}
@@ -46,11 +49,11 @@ func getInsertStatement(table string, cols []column, opts *Options) string {
 	count = 0
 
 	for _, col := range cols {
-		if col.Insert {
+		if col.insert {
 			if count > 0 {
 				buf.WriteString(", ")
 			}
-			buf.WriteString(col.Literal())
+			buf.WriteString(col.literal())
 			count++
 		}
 	}
@@ -61,7 +64,7 @@ func getInsertStatement(table string, cols []column, opts *Options) string {
 		buf.WriteString(" ON CONFLICT (" + opts.ConflictColumn + ") DO UPDATE SET ")
 		count = 0
 		for _, col := range cols {
-			if col.Update {
+			if col.update {
 				if count > 0 {
 					buf.WriteString(", ")
 				}

@@ -66,7 +66,7 @@ func validateColumns(cols []column, opts *Options) error {
 	if len(opts.InsertColumns) == 0 {
 		// Dump all columns
 		for i := range cols {
-			cols[i].Insert = true
+			cols[i].insert = true
 		}
 	} else {
 		// Dump specified columns
@@ -74,7 +74,7 @@ func validateColumns(cols []column, opts *Options) error {
 			found := false
 			for i := range cols {
 				if cols[i].Name == colname {
-					cols[i].Insert = true
+					cols[i].insert = true
 					found = true
 					break
 				}
@@ -92,9 +92,9 @@ func validateColumns(cols []column, opts *Options) error {
 		for i := range cols {
 			if cols[i].Name == opts.ConflictColumn {
 				foundconflictcol = true
-			} else if cols[i].Insert {
+			} else if cols[i].insert {
 				// Add column to DO UPDATE SET list
-				cols[i].Update = true
+				cols[i].update = true
 			}
 		}
 		if !foundconflictcol {
@@ -109,8 +109,8 @@ func getScanDest(cols []column) []interface{} {
 	var values []interface{}
 
 	for _, col := range cols {
-		if col.Insert {
-			values = append(values, col.Value)
+		if col.insert {
+			values = append(values, col.value)
 		}
 	}
 
