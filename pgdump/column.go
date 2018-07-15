@@ -100,25 +100,24 @@ func (col column) literal() string {
 				return strconv.FormatInt(v.Int64, 10)
 			}
 			return "NULL"
-		} else {
-			v := col.value.(*int64)
-			return strconv.FormatInt(*v, 10)
 		}
+		v := col.value.(*int64)
+		return strconv.FormatInt(*v, 10)
+
 	case "boolean":
 		if col.Nullable {
 			v := col.value.(*sql.NullBool)
 			if v.Valid {
 				if v.Bool {
 					return "TRUE"
-				} else {
-					return "FALSE"
 				}
+				return "FALSE"
 			}
 			return "NULL"
-		} else {
-			v := col.value.(*int64)
-			return strconv.FormatInt(*v, 10)
 		}
+		v := col.value.(*int64)
+		return strconv.FormatInt(*v, 10)
+
 	case "integer":
 		if col.Nullable {
 			v := col.value.(*sql.NullInt64)
@@ -126,10 +125,10 @@ func (col column) literal() string {
 				return strconv.FormatInt(v.Int64, 10)
 			}
 			return "NULL"
-		} else {
-			v := col.value.(*int)
-			return strconv.Itoa(*v)
 		}
+		v := col.value.(*int)
+		return strconv.Itoa(*v)
+
 	case "numeric":
 		if col.Nullable {
 			v := col.value.(*sql.NullString)
@@ -137,10 +136,10 @@ func (col column) literal() string {
 				return v.String
 			}
 			return "NULL"
-		} else {
-			v := col.value.(*string)
-			return *v
 		}
+		v := col.value.(*string)
+		return *v
+
 	case "text":
 		if col.Nullable {
 			v := col.value.(*sql.NullString)
@@ -148,10 +147,10 @@ func (col column) literal() string {
 				return quoteString(v.String)
 			}
 			return "NULL"
-		} else {
-			v := col.value.(*string)
-			return quoteString(*v)
 		}
+		v := col.value.(*string)
+		return quoteString(*v)
+
 	case "timestamp with time zone":
 		if col.Nullable {
 			v := col.value.(*pq.NullTime)
@@ -160,11 +159,10 @@ func (col column) literal() string {
 				return "'" + ts + "'"
 			}
 			return "NULL"
-		} else {
-			v := col.value.(*time.Time)
-			ts := v.Format("2006-01-02 15:04:05.000000-07")
-			return "'" + ts + "'"
 		}
+		v := col.value.(*time.Time)
+		ts := v.Format("2006-01-02 15:04:05.000000-07")
+		return "'" + ts + "'"
 	}
 
 	if col.Nullable {

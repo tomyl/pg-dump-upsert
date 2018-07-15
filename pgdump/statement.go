@@ -27,7 +27,7 @@ func getQueryStatement(db *sql.DB, table string, cols []column) string {
 	return buf.String()
 }
 
-// getInsertStatement returns INSERT statment to output for row currently
+// getInsertStatement returns INSERT statement to output for row currently
 // loaded in to cols slice.
 func getInsertStatement(table string, cols []column, opts *Options) string {
 	var buf bytes.Buffer
