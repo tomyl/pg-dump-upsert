@@ -373,7 +373,11 @@ func main() {
 		log.Fatal("cannot combine -noconflict and -conflict")
 	}
 
-	insertcols := strings.Split(*insert, ",")
+	var insertcols []string
+
+	if *insert != "" {
+		insertcols = strings.Split(*insert, ",")
+	}
 
 	if *tx {
 		fmt.Printf("BEGIN;\n")
