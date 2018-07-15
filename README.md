@@ -1,5 +1,9 @@
 # pg-dump-upsert
 
+[![Build Status](https://travis-ci.org/tomyl/pg-dump-upsert.svg?branch=master)](https://travis-ci.org/tomyl/pg-dump-upsert)
+[![GoDoc](https://godoc.org/github.com/tomyl/pg-dump-upsert/pgdump?status.png)](http://godoc.org/github.com/tomyl/pg-dump-upsert/pgdump)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tomyl/pg-dump-upsert)](https://goreportcard.com/report/github.com/tomyl/pg-dump-upsert)
+
 Simple tool to dump a Postgresql table as `INSERT` statements with `ON
 CONFLICT` clause (also known as "upsert" statements).
 
@@ -68,6 +72,7 @@ INSERT INTO source (id, created_at, name) VALUES (1, '2018-06-13 21:10:34.769555
 ```
 
 # TODO
+- [ ] Implement support for all Postgres data types.
 - [ ] Allow which columns to update when specifying `-conflict-column`?
 - [ ] Allow specify `SELECT` query or `WHERE` clause?
 - [ ] Properly quote identifiers.
