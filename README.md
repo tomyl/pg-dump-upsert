@@ -7,11 +7,11 @@ CONFLICT` clause (also known as "upsert" statements).
 
 # Rationale
 
-The [pg\_dump](https://www.postgresql.org/docs/current/static/backup-dump.html)
+The [pg\_dump](https://www.postgresql.org/docs/current/static/app-pgdump.html)
 command can dump tables as `INSERT` statements however you can't directly
 restore such dumps if the database has conflicting rows. Furthermore `pg_dump`
 is doing more work than simply querying the data and this sometimes causes
-seemingly unrelated errors.
+seemingly unrelated failures.
 
 # Installation
 
