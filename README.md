@@ -67,6 +67,8 @@ INSERT INTO source (id, created_at, name) VALUES (1, '2018-06-13 21:10:34.769555
 ...
 ```
 
+To restore a dump, simply use the `\i` command in `psql`.
+
 # TODO
 - [ ] Allow which columns to update when specifying `-conflict-column`?
 - [ ] Allow specify `SELECT` query or `WHERE` clause?
