@@ -54,7 +54,7 @@ INSERT INTO source (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:3
 Choose which columns to dump:
 
 ```bash
-$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -insert id,name
+$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -insert-columns id,name
 INSERT INTO source (id, name) VALUES (1, 'Jane Doe');
 ...
 ```
