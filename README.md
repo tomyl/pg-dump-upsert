@@ -47,7 +47,7 @@ Dump all rows in table `employee`:
 
 ```bash
 $ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee 
-INSERT INTO source (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456);
+INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456);
 ...
 ```
 
@@ -55,7 +55,7 @@ Choose which columns to dump:
 
 ```bash
 $ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -insert-columns id,name
-INSERT INTO source (id, name) VALUES (1, 'Jane Doe');
+INSERT INTO employee (id, name) VALUES (1, 'Jane Doe');
 ...
 ```
 
@@ -63,7 +63,7 @@ Ignore conflicts:
 
 ```bash
 $ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -noconflict
-INSERT INTO source (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe' 123456) ON CONFLICT DO NOTHING;
+INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe' 123456) ON CONFLICT DO NOTHING;
 ...
 ```
 
@@ -71,7 +71,7 @@ Update columns on conflict:
 
 ```bash
 $ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -conflict-column id
-INSERT INTO source (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456) ON CONFLICT (id) DO UPDATE SET created_at=EXCLUDED.created_at, name=EXCLUDED.name;
+INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456) ON CONFLICT (id) DO UPDATE SET created_at=EXCLUDED.created_at, name=EXCLUDED.name;
 ...
 ```
 
@@ -79,7 +79,7 @@ Fetch a subset of the rows:
 
 ```bash
 $ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -query "WHERE salary > 12345"
-INSERT INTO source (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456);
+INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456);
 ...
 ```
 
