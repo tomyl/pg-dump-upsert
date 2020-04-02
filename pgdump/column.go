@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
@@ -35,7 +36,7 @@ func (col *column) bind() {
 	}
 
 	switch col.Type {
-	case "bigint":
+	case "bigint", "smallint":
 		if col.Nullable {
 			var v sql.NullInt64
 			col.value = &v
@@ -69,12 +70,19 @@ func (col *column) bind() {
 			var v string
 			col.value = &v
 		}
-	case "timestamp with time zone":
+	case "timestamp with time zone", "timestamp without time zone":
 		if col.Nullable {
 			var v pq.NullTime
 			col.value = &v
 		} else {
 			var v time.Time
+			col.value = &v
+		}
+	case "uuid":
+		if col.Nullable {
+			// FIXME
+		} else {
+			var v uuid.UUID
 			col.value = &v
 		}
 	}
@@ -93,7 +101,7 @@ func (col column) literal() string {
 	}
 
 	switch col.Type {
-	case "bigint":
+	case "bigint", "smallint":
 		if col.Nullable {
 			v := col.value.(*sql.NullInt64)
 			if v.Valid {
@@ -115,8 +123,11 @@ func (col column) literal() string {
 			}
 			return "NULL"
 		}
-		v := col.value.(*int64)
-		return strconv.FormatInt(*v, 10)
+		v := col.value.(*bool)
+		if *v {
+			return "TRUE"
+		}
+		return "FALSE"
 
 	case "integer":
 		if col.Nullable {
@@ -151,7 +162,7 @@ func (col column) literal() string {
 		v := col.value.(*string)
 		return quoteString(*v)
 
-	case "timestamp with time zone":
+	case "timestamp with time zone", "timestamp without time zone":
 		if col.Nullable {
 			v := col.value.(*pq.NullTime)
 			if v.Valid {
@@ -163,6 +174,9 @@ func (col column) literal() string {
 		v := col.value.(*time.Time)
 		ts := v.Format("2006-01-02 15:04:05.000000-07")
 		return "'" + ts + "'"
+	case "uuid":
+		v := col.value.(*uuid.UUID)
+		return "'" + v.String() + "'"
 	}
 
 	if col.Nullable {
