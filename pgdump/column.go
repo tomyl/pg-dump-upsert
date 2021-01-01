@@ -107,11 +107,14 @@ func (col column) literal() string {
 	case "smallint", "integer", "bigint", "smallserial", "serial", "bigserial":
 		if col.Array {
 			vs := *col.value.(*pq.Int64Array)
+			if len(vs) == 0 {
+				return "'{}'"
+			}
 			literals := make([]string, len(vs))
 			for i, x := range vs {
 				literals[i] = strconv.FormatInt(x, 10)
 			}
-			return "{" + strings.Join(literals, ", ") + "}"
+			return "ARRAY[" + strings.Join(literals, ", ") + "]"
 		}
 
 		var vi64 int64
@@ -128,11 +131,14 @@ func (col column) literal() string {
 	case "real", "double precision":
 		if col.Array {
 			vs := *col.value.(*pq.Float64Array)
+			if len(vs) == 0 {
+				return "'{}'"
+			}
 			literals := make([]string, len(vs))
 			for i, x := range vs {
 				literals[i] = strconv.FormatFloat(x, 10, -1, 64)
 			}
-			return "{" + strings.Join(literals, ", ") + "}"
+			return "ARRAY[" + strings.Join(literals, ", ") + "]"
 		}
 
 		var vf64 float64
@@ -150,11 +156,14 @@ func (col column) literal() string {
 	case "decimal", "numeric", "money", "character varying", "varchar", "character", "char", "text", "binary":
 		if col.Array {
 			vs := *col.value.(*pq.StringArray)
+			if len(vs) == 0 {
+				return "'{}'"
+			}
 			literals := make([]string, len(vs))
 			for i, x := range vs {
 				literals[i] = quoteString(x)
 			}
-			return "{" + strings.Join(literals, ", ") + "}"
+			return "ARRAY[" + strings.Join(literals, ", ") + "]"
 		}
 
 		var vstr string
@@ -185,11 +194,14 @@ func (col column) literal() string {
 	case "boolean":
 		if col.Array {
 			vs := *col.value.(*pq.BoolArray)
+			if len(vs) == 0 {
+				return "'{}'"
+			}
 			literals := make([]string, len(vs))
 			for i, x := range vs {
 				literals[i] = strings.ToUpper(strconv.FormatBool(x))
 			}
-			return "{" + strings.Join(literals, ", ") + "}"
+			return "ARRAY[" + strings.Join(literals, ", ") + "]"
 		}
 
 		var vb bool
