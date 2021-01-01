@@ -1,2 +1,26 @@
-# Vim
-.*.sw[a-z]
+# Ignore binaries
+/pg-dump-upsert
+
+# Ignore IDE config
+/.idea
+/.vscode
+
+# Vim swap and backup files
+.*.sw[op]
+.sw[op]
+.*~
+
+# Ignore tag files
+/tags
+TAGS
+
+# Ignore General macOS stuff
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Ignore macOS icons (must end with two \r)
+Icon
+
+# Ignore macOS thumbnails
+._*
