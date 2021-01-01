@@ -59,7 +59,7 @@ func main() {
 		fmt.Printf("BEGIN;\n")
 	}
 
-	if err := pgdump.Dump(os.Stdout, db, *table, &opts); err != nil {
+	if err := pgdump.DumpStream(os.Stdout, db, *table, &opts); err != nil {
 		log.Fatal(err)
 	}
 

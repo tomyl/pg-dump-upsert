@@ -29,8 +29,17 @@ type Options struct {
 	Verbose bool
 }
 
+func DumpStream(writer io.Writer, db *sql.DB, table string, opts *Options) error {
+	dumpFunc := func(st string) error {
+		_, err := writer.Write([]byte(st))
+		return err
+	}
+
+	return Dump(dumpFunc, db, table, opts)
+}
+
 // Dump outputs INSERT statements for all rows in specified table.
-func Dump(writer io.Writer, db *sql.DB, table string, opts *Options) error {
+func Dump(dumpFunc func(string) error, db *sql.DB, table string, opts *Options) error {
 	if opts == nil {
 		opts = &Options{}
 	}
@@ -75,10 +84,9 @@ func Dump(writer io.Writer, db *sql.DB, table string, opts *Options) error {
 	for rows.Next() {
 		if err := rows.Scan(dest...); err != nil {
 			return err
+		} else if err := dumpFunc(getInsertStatement(table, cols, opts)); err != nil {
+			return err
 		}
-		// Output INSERT statements
-		st := getInsertStatement(table, cols, opts)
-		writer.Write([]byte(st))
 		count++
 	}
 
