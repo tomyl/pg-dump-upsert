@@ -12,6 +12,8 @@ import (
 
 func main() {
 	configFilePath := flag.String("config", "", "Path to configuraiton file (ex. config.json)")
+	startAt := flag.String("start-at", "",
+		"Manually force last-sync start time (useful when starting from a freshly-restored PGDUMP)")
 	verbose := flag.Bool("verbose", false, "Be verbose")
 	flag.Parse()
 
@@ -64,10 +66,15 @@ func main() {
 
 	var lastSync *syncRecord
 	createTableSyncRecords(followerDb)
-	if lastSync, err = lastFinishedSync(followerDb); err == sql.ErrNoRows {
-		lastSync = &syncRecord{
-			startedAt: time.Unix(0, 0),
+	if *startAt != "" {
+		if t, err := time.Parse(time.RFC3339, *startAt); err != nil {
+			log.Panicf("Couldn't parse start time provided by -start-at: %v\n", err)
+		} else {
+			lastSync = &syncRecord{startedAt: t}
+			log.Printf("Manual start time provided, starting at %s\n", lastSync.startedAt.String())
 		}
+	} else if lastSync, err = lastFinishedSync(followerDb); err == sql.ErrNoRows {
+		lastSync = &syncRecord{startedAt: time.Unix(0, 0)}
 		log.Printf("Found no completed syncRecord, starting at %s\n", lastSync.startedAt.String())
 	} else if err != nil {
 		log.Panicf("Failed to query last completed syncRecord: %v\n", err)
