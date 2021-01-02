@@ -232,8 +232,8 @@ func quoteString(s string) string {
 }
 
 // getColumns fetches column list for table from database.
-func getColumns(db *sql.DB, table string, opts *Options) ([]column, error) {
-	rows, err := db.Query(`
+func getColumns(tx *sql.Tx, table string, opts *Options) ([]column, error) {
+	rows, err := tx.Query(`
 		SELECT c.column_name, c.data_type, e.data_type as element_data_type, c.is_nullable
 		FROM information_schema.columns c
 		LEFT OUTER JOIN information_schema.element_types e

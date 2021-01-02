@@ -29,23 +29,23 @@ type Options struct {
 	Verbose bool
 }
 
-func DumpStream(writer io.Writer, db *sql.DB, table string, opts *Options) error {
+func DumpStream(writer io.Writer, tx *sql.Tx, table string, opts *Options) error {
 	dumpFunc := func(st string) error {
 		_, err := writer.Write([]byte(st))
 		return err
 	}
 
-	return Dump(dumpFunc, db, table, opts)
+	return Dump(dumpFunc, tx, table, opts)
 }
 
 // Dump outputs INSERT statements for all rows in specified table.
-func Dump(dumpFunc func(string) error, db *sql.DB, table string, opts *Options) error {
+func Dump(dumpFunc func(string) error, tx *sql.Tx, table string, opts *Options) error {
 	if opts == nil {
 		opts = &Options{}
 	}
 
 	// Ask database for column list for this table
-	cols, err := getColumns(db, table, opts)
+	cols, err := getColumns(tx, table, opts)
 
 	if err != nil {
 		return err
@@ -60,17 +60,17 @@ func Dump(dumpFunc func(string) error, db *sql.DB, table string, opts *Options) 
 	st := opts.Query
 
 	if st == "" {
-		st = getQueryStatement(db, table, cols)
+		st = getQueryStatement(table, cols)
 	} else if strings.HasPrefix(strings.ToUpper(st), "WHERE") {
 		where := st
-		st = getQueryStatement(db, table, cols) + " " + where
+		st = getQueryStatement(table, cols) + " " + where
 	}
 
 	if opts.Verbose {
 		log.Println(st)
 	}
 
-	rows, err := db.Query(st)
+	rows, err := tx.Query(st)
 
 	if err != nil {
 		return err

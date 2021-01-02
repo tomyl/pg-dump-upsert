@@ -10,10 +10,10 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/tomyl/pg-dump-upsert/pgdump"
+	"golang.org/x/net/context"
 )
 
 func main() {
@@ -32,10 +32,9 @@ func main() {
 		log.Panicf("Couldn't load config: %v\n", err)
 	}
 
-	s := synchronizer{
+	s := &synchronizer{
 		c:       c.Sync,
 		verbose: *verbose,
-		updated: new(uint64),
 	}
 
 	timestampFile, err := os.OpenFile(c.TimestampFilePath, os.O_RDWR, 0)
@@ -51,16 +50,19 @@ func main() {
 		log.Panicf("Couldn't parse timestamp file: %v\n", err)
 	}
 
-	if db, err := sql.Open("postgres", c.LeaderDSN); err != nil {
+	var leaderDb *sql.DB
+	if leaderDb, err = sql.Open("postgres", c.LeaderDSN); err != nil {
 		log.Panicf("Failed to open leader database: %v\n", err)
-	} else {
-		s.leader = db
 	}
-	if db, err := sql.Open("postgres", c.FollowerDSN); err != nil {
+	s.leader = leaderDb
+	defer leaderDb.Close()
+
+	var followerDb *sql.DB
+	if followerDb, err = sql.Open("postgres", c.FollowerDSN); err != nil {
 		log.Panicf("Failed to open flollower database: %v\n", err)
-	} else {
-		s.follower = db
 	}
+	s.follower = followerDb
+	defer followerDb.Close()
 
 	for i := range c.Tables {
 		t := &c.Tables[i]
@@ -78,14 +80,7 @@ func main() {
 		}
 	}
 
-	shutdownSignalRecvd := int32(0)
-	interrupts := make(chan os.Signal)
-	go func() {
-		for range interrupts {
-			log.Println("Recieved SIGINT, quiting when next sync is done.")
-			atomic.StoreInt32(&shutdownSignalRecvd, 1)
-		}
-	}()
+	interrupts := make(chan os.Signal, 1)
 	signal.Notify(interrupts, os.Interrupt)
 
 	for {
@@ -103,40 +98,52 @@ func main() {
 			log.Panicf("Failed to write new timestamp to timestamp file: %v\n", err)
 		}
 
-		if 0 != atomic.LoadInt32(&shutdownSignalRecvd) {
-			log.Println("Exiting because shutdown signal recieved")
-			break
-		} else if *s.updated == 0 && c.Run.ExitOnCompletion {
-			log.Println("Exiting because follower has caught up with leader")
+		log.Printf("Completed sync of all tables in %s, updated %d rows across all tables.\n", time.Since(syncStart).String(), s.updated)
+		if s.updated == 0 && c.Run.ExitOnCompletion {
+			log.Println("Exiting because the follower has caught up with leader.")
 			break
 		}
-
-		time.Sleep(time.Duration(float64(time.Second) * c.Run.IterationSleepInterval))
+		select {
+		case <-interrupts:
+			log.Println("Exiting because interrupt recieved.")
+			break
+		case <-time.After(time.Duration(float64(time.Second) * c.Run.IterationSleepInterval)):
+			// continue execution.
+		}
 	}
 }
 
 type synchronizer struct {
 	leader   *sql.DB
+	leaderTx *sql.Tx
 	follower *sql.DB
 	c        syncConfig
-	updated  *uint64
+	updated  uint64
 	verbose  bool
 }
 
-func (s synchronizer) syncAll(lastSync time.Time, ts []tableConfig) {
-	*s.updated = 0
+func (s *synchronizer) syncAll(lastSync time.Time, ts []tableConfig) {
+	s.updated = 0
+
+	var err error
+	ctx := context.Background()
+	txOptions := sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true}
+	if s.leaderTx, err = s.leader.BeginTx(ctx, &txOptions); err != nil {
+		log.Panicf("Failed to create leader transaction for sync: %v\n", err)
+	}
+
 	for _, t := range ts {
 		tableSyncStart := time.Now()
-		origUpdated := *s.updated
+		origUpdated := s.updated
 		log.Printf("Syncing table %s ...\n", t.Name)
 
 		s.sync(lastSync, t)
 
-		log.Printf("done in %s, updated %d rows.\n", time.Now().Local().Sub(tableSyncStart).String(), *s.updated-origUpdated)
+		log.Printf("done in %s, updated %d rows.\n", time.Since(tableSyncStart).String(), s.updated-origUpdated)
 	}
 }
 
-func (s synchronizer) sync(lastSync time.Time, t tableConfig) {
+func (s *synchronizer) sync(lastSync time.Time, t tableConfig) {
 	switch t.ReplicationMode {
 	case "", "upsert":
 		s.syncUpsert(lastSync, t)
@@ -149,7 +156,7 @@ func (s synchronizer) sync(lastSync time.Time, t tableConfig) {
 	}
 }
 
-func (s synchronizer) syncUpsert(lastSync time.Time, t tableConfig) {
+func (s *synchronizer) syncUpsert(lastSync time.Time, t tableConfig) {
 	minId := s.partionByAge(lastSync, t)
 	margin := time.Duration(float64(time.Second) * s.c.ClockSynchronizationMarginSeconds)
 	updatedAt := lastSync.Add(-1 * margin).Format(time.RFC3339)
@@ -162,7 +169,7 @@ func (s synchronizer) syncUpsert(lastSync time.Time, t tableConfig) {
 	})
 }
 
-func (s synchronizer) syncInsert(lastSync time.Time, t tableConfig) {
+func (s *synchronizer) syncInsert(lastSync time.Time, t tableConfig) {
 	minId := s.partionByAge(lastSync, t)
 	margin := time.Duration(float64(time.Second) * s.c.ClockSynchronizationMarginSeconds)
 	updatedAt := lastSync.Add(-1 * margin).Format(time.RFC3339)
@@ -176,7 +183,7 @@ func (s synchronizer) syncInsert(lastSync time.Time, t tableConfig) {
 	})
 }
 
-func (s synchronizer) syncInsertSerial(lastSync time.Time, t tableConfig) {
+func (s *synchronizer) syncInsertSerial(lastSync time.Time, t tableConfig) {
 	row := s.follower.QueryRow(fmt.Sprintf(`SELECT %s FROM %s ORDER BY 1 DESC LIMIT 1`, t.IdColumn, t.Name))
 	var lastId, minId int64
 	if err := row.Scan(&lastId); err == sql.ErrNoRows {
@@ -193,19 +200,19 @@ func (s synchronizer) syncInsertSerial(lastSync time.Time, t tableConfig) {
 	})
 }
 
-func (s synchronizer) execOnFollower(st string) error {
-	*s.updated += 1
+func (s *synchronizer) execOnFollower(st string) error {
+	s.updated += 1
 	_, err := s.follower.Exec(st)
 	return err
 }
 
-func (s synchronizer) dump(t tableConfig, pgdumpOpts *pgdump.Options) {
-	if err := pgdump.Dump(s.execOnFollower, s.leader, t.Name, pgdumpOpts); err != nil {
+func (s *synchronizer) dump(t tableConfig, pgdumpOpts *pgdump.Options) {
+	if err := pgdump.Dump(s.execOnFollower, s.leaderTx, t.Name, pgdumpOpts); err != nil {
 		log.Panicf("Failed to dump table %s: %v\n", t.Name, err)
 	}
 }
 
-func (s synchronizer) partionByAge(lastSync time.Time, t tableConfig) int64 {
+func (s *synchronizer) partionByAge(lastSync time.Time, t tableConfig) int64 {
 	if t.MaxRecordAgeSeconds == 0 {
 		return 0
 	}
@@ -215,7 +222,7 @@ func (s synchronizer) partionByAge(lastSync time.Time, t tableConfig) int64 {
 	st := fmt.Sprintf(
 		"SELECT %s FROM %s WHERE %s < TIMESTAMP '%s' ORDER BY 1 DESC LIMIT 1",
 		t.IdColumn, t.Name, t.CreatedAtColumn, creationTimestamp)
-	row := s.leader.QueryRow(st)
+	row := s.leaderTx.QueryRow(st)
 
 	var id int64
 	if err := row.Scan(&id); err == sql.ErrNoRows {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -50,16 +51,23 @@ func main() {
 	}
 
 	db, err := sql.Open("postgres", *dsn)
-
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.Close()
 
 	if *tx {
 		fmt.Printf("BEGIN;\n")
 	}
 
-	if err := pgdump.DumpStream(os.Stdout, db, *table, &opts); err != nil {
+	ctx := context.Background()
+	txOptions := sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true}
+	stx, err := db.BeginTx(ctx, &txOptions)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := pgdump.DumpStream(os.Stdout, stx, *table, &opts); err != nil {
 		log.Fatal(err)
 	}
 
