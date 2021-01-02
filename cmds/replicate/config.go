@@ -19,9 +19,8 @@ type tableConfig struct {
 }
 
 type config struct {
-	LeaderDSN         string `json:"leaderDSN"`
-	FollowerDSN       string `json:"followerDSN"`
-	TimestampFilePath string `json:"timestampFilePath"`
+	LeaderDSN   string `json:"leaderDSN"`
+	FollowerDSN string `json:"followerDSN"`
 
 	Run    runConfig     `json:"run"`
 	Sync   syncConfig    `json:"sync"`

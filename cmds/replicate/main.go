@@ -4,11 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 )
 
@@ -33,19 +31,7 @@ func main() {
 		verbose: *verbose,
 	}
 
-	timestampFile, err := os.OpenFile(c.TimestampFilePath, os.O_RDWR, 0)
-	if err != nil {
-		log.Panicf("Couldn't open timestamp file: %v\n", err)
-	}
-	defer timestampFile.Close()
-
-	var lastSync time.Time
-	if d, err := ioutil.ReadAll(timestampFile); err != nil {
-		log.Panicf("Couldn't load timestamp file: %v\n", err)
-	} else if lastSync, err = time.Parse(time.RFC3339, strings.TrimSpace(string(d))); err != nil {
-		log.Panicf("Couldn't parse timestamp file: %v\n", err)
-	}
-
+	var err error
 	var leaderDb *sql.DB
 	if leaderDb, err = sql.Open("postgres", c.LeaderDSN); err != nil {
 		log.Panicf("Failed to open leader database: %v\n", err)
@@ -76,25 +62,44 @@ func main() {
 		}
 	}
 
+	var lastSync *syncRecord
+	createTableSyncRecords(followerDb)
+	if lastSync, err = lastFinishedSync(followerDb); err == sql.ErrNoRows {
+		lastSync = &syncRecord{
+			startedAt: time.Unix(0, 0),
+		}
+		log.Printf("Found no completed syncRecord, starting at %s\n", lastSync.startedAt.String())
+	} else if err != nil {
+		log.Panicf("Failed to query last completed syncRecord: %v\n", err)
+	} else {
+		log.Printf("Found last sync record (%d), starting at %s\n", *lastSync.id, lastSync.startedAt.String())
+	}
+
 	interrupts := make(chan os.Signal, 1)
 	signal.Notify(interrupts, os.Interrupt)
 
 	for {
-		syncStart := time.Now()
-		log.Printf("Starting sync of all tables at %s.\n", syncStart.String())
-
-		s.syncAll(lastSync, c.Tables)
-
-		lastSync = syncStart
-		if _, err := timestampFile.Seek(0, 0); err != nil {
-			log.Panicf("Failed to seek on timestamp file: %v\n", err)
-		} else if err := timestampFile.Truncate(0); err != nil {
-			log.Panicf("Failed to seek truncate timestamp file: %v\n", err)
-		} else if _, err := timestampFile.WriteString(lastSync.Format(time.RFC3339) + "\n"); err != nil {
-			log.Panicf("Failed to write new timestamp to timestamp file: %v\n", err)
+		currentSync := &syncRecord{
+			startedAt: time.Now(),
+		}
+		if err := currentSync.create(followerDb); err != nil {
+			log.Panicf("Failed to create new syncRecord before loop: %v\n", err)
 		}
 
-		log.Printf("Completed sync of all tables in %s, updated %d rows across all tables.\n", time.Since(syncStart).String(), s.updated)
+		log.Printf("Starting sync of all tables at %s.\n", currentSync.startedAt.String())
+
+		s.syncAll(lastSync.startedAt, c.Tables)
+
+		currentSync.finish()
+		if err := currentSync.save(followerDb); err != nil {
+			log.Panicf("Failed to save syncRecord after loop: %v\n", err)
+		}
+		lastSync = currentSync
+
+		log.Printf(
+			"Completed sync of all tables in %s, updated %d rows across all tables.\n",
+			currentSync.duration().String(), s.updated)
+
 		if s.updated == 0 && c.Run.ExitOnCompletion {
 			log.Println("Exiting because the follower has caught up with leader.")
 			break
@@ -102,7 +107,7 @@ func main() {
 		select {
 		case <-interrupts:
 			log.Println("Exiting because interrupt recieved.")
-			break
+			return
 		case <-time.After(time.Duration(float64(time.Second) * c.Run.IterationSleepInterval)):
 			// continue execution.
 		}
