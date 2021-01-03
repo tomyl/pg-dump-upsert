@@ -20,6 +20,9 @@ type column struct {
 	// Whether column is nullable
 	Nullable bool
 
+	// Whether column is an array
+	Array bool
+
 	// Whether to include this column in INSERT statement
 	insert bool
 
@@ -36,60 +39,60 @@ func (col *column) bind() {
 	}
 
 	switch col.Type {
-	case "bigint", "smallint":
-		if col.Nullable {
-			var v sql.NullInt64
-			col.value = &v
+	case "smallint", "integer", "bigint", "smallserial", "serial", "bigserial":
+		if col.Array {
+			col.value = new(pq.Int64Array)
+		} else if col.Nullable {
+			col.value = new(sql.NullInt64)
 		} else {
-			var v int64
-			col.value = &v
+			col.value = new(int64)
+		}
+	case "real", "double precision":
+		if col.Array {
+			col.value = new(pq.Float64Array)
+		} else if col.Nullable {
+			col.value = new(sql.NullFloat64)
+		} else {
+			col.value = new(float64)
+		}
+	case "decimal", "numeric", "money", "character varying", "varchar", "character", "char", "text", "binary":
+		if col.Array {
+			col.value = new(pq.StringArray)
+		} else if col.Nullable {
+			col.value = new(sql.NullString)
+		} else {
+			col.value = new(string)
+		}
+	case "timestamp without time zone", "timestamp with time zone", "date", "time without time zone", "time with time zone":
+		if col.Array {
+			// FIXME
+			panic("don't know how to bind array column " + col.Name + " of type " + col.Type)
+		} else if col.Nullable {
+			col.value = new(pq.NullTime)
+		} else {
+			col.value = new(time.Time)
 		}
 	case "boolean":
-		if col.Nullable {
-			var v sql.NullBool
-			col.value = &v
+		if col.Array {
+			col.value = new([]pq.BoolArray)
+		} else if col.Nullable {
+			col.value = new(sql.NullBool)
 		} else {
-			var v bool
-			col.value = &v
-		}
-	case "integer":
-		if col.Nullable {
-			var v sql.NullInt64
-			col.value = &v
-		} else {
-			var v int
-			col.value = &v
-		}
-	case "numeric":
-		fallthrough
-	case "text":
-		if col.Nullable {
-			var v sql.NullString
-			col.value = &v
-		} else {
-			var v string
-			col.value = &v
-		}
-	case "timestamp with time zone", "timestamp without time zone":
-		if col.Nullable {
-			var v pq.NullTime
-			col.value = &v
-		} else {
-			var v time.Time
-			col.value = &v
+			col.value = new(bool)
 		}
 	case "uuid":
-		if col.Nullable {
+		if col.Array {
 			// FIXME
-		} else {
-			var v uuid.UUID
-			col.value = &v
-		}
-	}
-
-	if col.value == nil {
-		if col.Nullable {
+			panic("don't know how to bind array column " + col.Name + " of type " + col.Type)
+		} else if col.Nullable {
+			// FIXME
 			panic("don't know how to bind nullable column " + col.Name + " of type " + col.Type)
+		} else {
+			col.value = new(uuid.UUID)
+		}
+	default:
+		if col.Array {
+			panic("don't know how to bind array column " + col.Name + " of type " + col.Type)
 		}
 		panic("don't know how to bind column " + col.Name + " of type " + col.Type)
 	}
@@ -101,89 +104,126 @@ func (col column) literal() string {
 	}
 
 	switch col.Type {
-	case "bigint", "smallint":
-		if col.Nullable {
-			v := col.value.(*sql.NullInt64)
-			if v.Valid {
-				return strconv.FormatInt(v.Int64, 10)
+	case "smallint", "integer", "bigint", "smallserial", "serial", "bigserial":
+		if col.Array {
+			vs := *col.value.(*pq.Int64Array)
+			if len(vs) == 0 {
+				return "'{}'"
 			}
-			return "NULL"
+			literals := make([]string, len(vs))
+			for i, x := range vs {
+				literals[i] = strconv.FormatInt(x, 10)
+			}
+			return "ARRAY[" + strings.Join(literals, ", ") + "]"
 		}
-		v := col.value.(*int64)
-		return strconv.FormatInt(*v, 10)
 
+		var vi64 int64
+		if col.Nullable {
+			if v := col.value.(*sql.NullInt64); v.Valid {
+				vi64 = v.Int64
+			} else {
+				return "NULL"
+			}
+		} else {
+			vi64 = *col.value.(*int64)
+		}
+		return strconv.FormatInt(vi64, 10)
+	case "real", "double precision":
+		if col.Array {
+			vs := *col.value.(*pq.Float64Array)
+			if len(vs) == 0 {
+				return "'{}'"
+			}
+			literals := make([]string, len(vs))
+			for i, x := range vs {
+				literals[i] = strconv.FormatFloat(x, 10, -1, 64)
+			}
+			return "ARRAY[" + strings.Join(literals, ", ") + "]"
+		}
+
+		var vf64 float64
+		if col.Nullable {
+			if v := col.value.(*sql.NullFloat64); v.Valid {
+				vf64 = v.Float64
+			} else {
+				return "NULL"
+			}
+		} else {
+			vf64 = *col.value.(*float64)
+		}
+
+		return strconv.FormatFloat(vf64, 'f', -1, 64)
+	case "decimal", "numeric", "money", "character varying", "varchar", "character", "char", "text", "binary":
+		if col.Array {
+			vs := *col.value.(*pq.StringArray)
+			if len(vs) == 0 {
+				return "'{}'"
+			}
+			literals := make([]string, len(vs))
+			for i, x := range vs {
+				literals[i] = quoteString(x)
+			}
+			return "ARRAY[" + strings.Join(literals, ", ") + "]"
+		}
+
+		var vstr string
+		if col.Nullable {
+			if v := col.value.(*sql.NullString); v.Valid {
+				vstr = v.String
+			} else {
+				return "NULL"
+			}
+		} else {
+			vstr = *col.value.(*string)
+		}
+
+		return quoteString(vstr)
+	case "timestamp without time zone", "timestamp with time zone", "date", "time without time zone", "time with time zone":
+		var ts string
+		if col.Nullable {
+			if v := col.value.(*pq.NullTime); v.Valid {
+				ts = v.Time.Format("2006-01-02 15:04:05.000000-07")
+			} else {
+				return "NULL"
+			}
+		} else {
+			ts = col.value.(*time.Time).Format("2006-01-02 15:04:05.000000-07")
+		}
+
+		return quoteString(ts)
 	case "boolean":
-		if col.Nullable {
-			v := col.value.(*sql.NullBool)
-			if v.Valid {
-				if v.Bool {
-					return "TRUE"
-				}
-				return "FALSE"
+		if col.Array {
+			vs := *col.value.(*pq.BoolArray)
+			if len(vs) == 0 {
+				return "'{}'"
 			}
-			return "NULL"
+			literals := make([]string, len(vs))
+			for i, x := range vs {
+				literals[i] = strings.ToUpper(strconv.FormatBool(x))
+			}
+			return "ARRAY[" + strings.Join(literals, ", ") + "]"
 		}
-		v := col.value.(*bool)
-		if *v {
-			return "TRUE"
-		}
-		return "FALSE"
 
-	case "integer":
+		var vb bool
 		if col.Nullable {
-			v := col.value.(*sql.NullInt64)
-			if v.Valid {
-				return strconv.FormatInt(v.Int64, 10)
+			if v := col.value.(*sql.NullBool); v.Valid {
+				vb = v.Bool
+			} else {
+				return "NULL"
 			}
-			return "NULL"
+		} else {
+			vb = *col.value.(*bool)
 		}
-		v := col.value.(*int)
-		return strconv.Itoa(*v)
 
-	case "numeric":
-		if col.Nullable {
-			v := col.value.(*sql.NullString)
-			if v.Valid {
-				return v.String
-			}
-			return "NULL"
-		}
-		v := col.value.(*string)
-		return *v
-
-	case "text":
-		if col.Nullable {
-			v := col.value.(*sql.NullString)
-			if v.Valid {
-				return quoteString(v.String)
-			}
-			return "NULL"
-		}
-		v := col.value.(*string)
-		return quoteString(*v)
-
-	case "timestamp with time zone", "timestamp without time zone":
-		if col.Nullable {
-			v := col.value.(*pq.NullTime)
-			if v.Valid {
-				ts := v.Time.Format("2006-01-02 15:04:05.000000-07")
-				return "'" + ts + "'"
-			}
-			return "NULL"
-		}
-		v := col.value.(*time.Time)
-		ts := v.Format("2006-01-02 15:04:05.000000-07")
-		return "'" + ts + "'"
+		return strings.ToUpper(strconv.FormatBool(vb))
 	case "uuid":
-		v := col.value.(*uuid.UUID)
-		return "'" + v.String() + "'"
+		return quoteString(col.value.(*uuid.UUID).String())
+	default:
+		if col.Array {
+			panic("don't know how to quote array column " + col.Name + " of type " + col.Type)
+		}
+		panic("don't know how to quote column " + col.Name + " of type " + col.Type)
 	}
-
-	if col.Nullable {
-		panic("don't know how to quote nullable column " + col.Name + " of type " + col.Type)
-	}
-
-	panic("don't know how to quote column " + col.Name + " of type " + col.Type)
 }
 
 // quoteString returns an SQL string literal.
@@ -193,8 +233,14 @@ func quoteString(s string) string {
 
 // getColumns fetches column list for table from database.
 func getColumns(db *sql.DB, table string, opts *Options) ([]column, error) {
-	rows, err := db.Query("select column_name, data_type, is_nullable from information_schema.columns where table_name=$1", table)
-
+	rows, err := db.Query(`
+		SELECT c.column_name, c.data_type, e.data_type as element_data_type, c.is_nullable
+		FROM information_schema.columns c
+		LEFT OUTER JOIN information_schema.element_types e
+			ON (c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
+				= (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier)
+		WHERE table_name = $1
+	`, table)
 	if err != nil {
 		return nil, err
 	}
@@ -205,10 +251,24 @@ func getColumns(db *sql.DB, table string, opts *Options) ([]column, error) {
 
 	for rows.Next() {
 		var col column
+		var elementDataType sql.NullString
 		var nullable string
-		if err := rows.Scan(&col.Name, &col.Type, &nullable); err != nil {
+
+		if err := rows.Scan(&col.Name, &col.Type, &elementDataType, &nullable); err != nil {
 			return nil, err
 		}
+
+		if col.Type == "ARRAY" {
+			col.Array = true
+			if elementDataType.String == "USER-DEFINED" {
+				col.Type = "character varying" // assume character varying
+			} else {
+				col.Type = elementDataType.String
+			}
+		} else if col.Type == "USER-DEFINED" {
+			col.Type = "character varying" // assume character varying
+		}
+
 		if nullable == "YES" {
 			col.Nullable = true
 		}
