@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/tomyl/pg-dump-upsert/pgdump"
 )
 
 func main() {
@@ -33,20 +35,21 @@ func main() {
 		verbose: *verbose,
 	}
 
-	var err error
-	var leaderDb *sql.DB
-	if leaderDb, err = sql.Open("postgres", c.LeaderDSN); err != nil {
+	if leaderDb, err := sql.Open("postgres", c.LeaderDSN); err != nil {
 		log.Panicf("Failed to open leader database: %v\n", err)
+	} else {
+		defer leaderDb.Close()
+		s.leader = leaderDb
 	}
-	s.leader = leaderDb
-	defer leaderDb.Close()
 
-	var followerDb *sql.DB
-	if followerDb, err = sql.Open("postgres", c.FollowerDSN); err != nil {
+	var followerQ pgdump.Querier
+	if followerDb, err := sql.Open("postgres", c.FollowerDSN); err != nil {
 		log.Panicf("Failed to open flollower database: %v\n", err)
+	} else {
+		defer followerDb.Close()
+		s.follower = followerDb
+		followerQ = pgdump.NewQuerier(followerDb)
 	}
-	s.follower = followerDb
-	defer followerDb.Close()
 
 	for i := range c.Tables {
 		t := &c.Tables[i]
@@ -65,7 +68,8 @@ func main() {
 	}
 
 	var lastSync *syncRecord
-	createTableSyncRecords(followerDb)
+	var err error
+	createTableSyncRecords(followerQ)
 	if *startAt != "" {
 		if t, err := time.Parse(time.RFC3339, *startAt); err != nil {
 			log.Panicf("Couldn't parse start time provided by -start-at: %v\n", err)
@@ -73,7 +77,7 @@ func main() {
 			lastSync = &syncRecord{startedAt: t}
 			log.Printf("Manual start time provided, starting at %s\n", lastSync.startedAt.String())
 		}
-	} else if lastSync, err = lastFinishedSync(followerDb); err == sql.ErrNoRows {
+	} else if lastSync, err = lastFinishedSync(followerQ); err == sql.ErrNoRows {
 		lastSync = &syncRecord{startedAt: time.Unix(0, 0)}
 		log.Printf("Found no completed syncRecord, starting at %s\n", lastSync.startedAt.String())
 	} else if err != nil {
@@ -89,7 +93,7 @@ func main() {
 		currentSync := &syncRecord{
 			startedAt: time.Now(),
 		}
-		if err := currentSync.create(followerDb); err != nil {
+		if err := currentSync.create(followerQ); err != nil {
 			log.Panicf("Failed to create new syncRecord before loop: %v\n", err)
 		}
 
@@ -98,7 +102,7 @@ func main() {
 		s.syncAll(lastSync.startedAt, c.Tables)
 
 		currentSync.finish()
-		if err := currentSync.save(followerDb); err != nil {
+		if err := currentSync.save(followerQ); err != nil {
 			log.Panicf("Failed to save syncRecord after loop: %v\n", err)
 		}
 		lastSync = currentSync

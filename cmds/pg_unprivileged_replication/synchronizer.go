@@ -104,7 +104,7 @@ func (s *synchronizer) execOnFollower(st string) error {
 }
 
 func (s *synchronizer) dump(t tableConfig, pgdumpOpts *pgdump.Options) {
-	if err := pgdump.Dump(s.execOnFollower, s.leaderTx, t.Name, pgdumpOpts); err != nil {
+	if err := pgdump.Dump(s.execOnFollower, pgdump.NewQuerier(s.leaderTx), t.Name, pgdumpOpts); err != nil {
 		log.Panicf("Failed to dump table %s: %v\n", t.Name, err)
 	}
 }

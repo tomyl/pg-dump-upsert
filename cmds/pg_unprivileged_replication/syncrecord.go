@@ -1,12 +1,12 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/lib/pq"
+	"github.com/tomyl/pg-dump-upsert/pgdump"
 )
 
 type syncRecord struct {
@@ -15,8 +15,8 @@ type syncRecord struct {
 	finishedAt pq.NullTime
 }
 
-func createTableSyncRecords(db *sql.DB) {
-	if _, err := db.Exec(`
+func createTableSyncRecords(q pgdump.Querier) {
+	if _, err := q.Exec(`
 		CREATE TABLE IF NOT EXISTS unprivileged_replication_sync_records (
 			id bigserial PRIMARY KEY,
 			started_at timestamp without time zone NOT NULL,
@@ -27,11 +27,11 @@ func createTableSyncRecords(db *sql.DB) {
 	}
 }
 
-func lastFinishedSync(db *sql.DB) (*syncRecord, error) {
+func lastFinishedSync(q pgdump.Querier) (*syncRecord, error) {
 	r := &syncRecord{
 		id: new(int64),
 	}
-	row := db.QueryRow(`
+	row := q.QueryRow(`
 		SELECT id, started_at, finished_at
 		FROM unprivileged_replication_sync_records
 		WHERE finished_at IS NOT NULL
@@ -44,12 +44,12 @@ func lastFinishedSync(db *sql.DB) (*syncRecord, error) {
 	return r, nil
 }
 
-func (r *syncRecord) create(db *sql.DB) error {
+func (r *syncRecord) create(q pgdump.Querier) error {
 	if r.id != nil {
 		log.Panicln("create called on already-created syncRecord")
 	}
 
-	row := db.QueryRow(`
+	row := q.QueryRow(`
 		INSERT INTO unprivileged_replication_sync_records (started_at, finished_at)
 		VALUES ($1, $2)
 		RETURNING id;
@@ -61,12 +61,12 @@ func (r *syncRecord) create(db *sql.DB) error {
 	return nil
 }
 
-func (r syncRecord) save(db *sql.DB) error {
+func (r syncRecord) save(q pgdump.Querier) error {
 	if r.id == nil {
 		log.Panicln("save called on uncreated syncRecord")
 	}
 
-	if result, err := db.Exec(`
+	if result, err := q.Exec(`
 		UPDATE unprivileged_replication_sync_records
 		SET started_at = $1, finished_at = $2
 		WHERE id = $3;

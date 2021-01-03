@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -60,14 +59,10 @@ func main() {
 		fmt.Printf("BEGIN;\n")
 	}
 
-	ctx := context.Background()
-	txOptions := sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true}
-	stx, err := db.BeginTx(ctx, &txOptions)
-
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := pgdump.DumpStream(os.Stdout, stx, *table, &opts); err != nil {
+	if err := pgdump.DumpStream(os.Stdout, pgdump.NewQuerier(db), *table, &opts); err != nil {
 		log.Fatal(err)
 	}
 
