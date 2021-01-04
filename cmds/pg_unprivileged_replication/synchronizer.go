@@ -11,23 +11,17 @@ import (
 )
 
 type synchronizer struct {
-	leader   *sql.DB
-	leaderTx *sql.Tx
-	follower *sql.DB
-	c        syncConfig
-	updated  uint64
-	verbose  bool
+	leader     *sql.DB
+	leaderTx   *sql.Tx
+	follower   *sql.DB
+	followerTx *sql.Tx
+	c          syncConfig
+	updated    uint64
+	verbose    bool
 }
 
 func (s *synchronizer) syncAll(lastSync time.Time, ts []tableConfig) {
-	s.updated = 0
-
-	var err error
-	ctx := context.Background()
-	txOptions := sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true}
-	if s.leaderTx, err = s.leader.BeginTx(ctx, &txOptions); err != nil {
-		log.Panicf("Failed to create leader transaction for sync: %v\n", err)
-	}
+	s.begin()
 
 	for _, t := range ts {
 		tableSyncStart := time.Now()
@@ -37,6 +31,31 @@ func (s *synchronizer) syncAll(lastSync time.Time, ts []tableConfig) {
 		s.sync(lastSync, t)
 
 		log.Printf("done in %s, updated %d rows.\n", time.Since(tableSyncStart).String(), s.updated-origUpdated)
+	}
+
+	// We need to commit the leaderTx to ensure that we correctly obtained a serialized snapshot.
+	// See https://www.postgresql.org/docs/13/transaction-iso.html#XACT-SERIALIZABLE for more details.
+	if err := s.leaderTx.Commit(); err != nil {
+		_ = s.followerTx.Rollback()
+		log.Panicf("Failed to commit follower transaction: %v\n", err)
+	} else if err := s.followerTx.Commit(); err != nil {
+		log.Panicf("Failed to commit follower transaction: %v\n", err)
+	}
+}
+
+// begin preparse for an iteration, resetting updated and creating new transactions.
+func (s *synchronizer) begin() {
+	s.updated = 0
+
+	var err error
+	ctx := context.Background()
+	leaderTxOptions := sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true}
+	if s.leaderTx, err = s.leader.BeginTx(ctx, &leaderTxOptions); err != nil {
+		log.Panicf("Failed to create leader transaction for sync: %v\n", err)
+	}
+	followerTxOptions := sql.TxOptions{Isolation: sql.LevelRepeatableRead}
+	if s.followerTx, err = s.follower.BeginTx(ctx, &followerTxOptions); err != nil {
+		log.Panicf("Failed to create follower transaction for sync: %v\n", err)
 	}
 }
 
