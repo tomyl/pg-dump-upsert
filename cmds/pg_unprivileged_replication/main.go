@@ -26,8 +26,12 @@ func main() {
 	var c config
 	if configFile, err := os.OpenFile(*configFilePath, os.O_RDONLY, 0); err != nil {
 		log.Panicf("Couldn't open config file: %v\n", err)
-	} else if err := json.NewDecoder(configFile).Decode(&c); err != nil {
-		log.Panicf("Couldn't load config: %v\n", err)
+	} else {
+		err := json.NewDecoder(configFile).Decode(&c)
+		configFile.Close()
+		if err != nil {
+			log.Panicf("Couldn't load config: %v\n", err)
+		}
 	}
 
 	s := &synchronizer{
