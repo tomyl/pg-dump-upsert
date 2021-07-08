@@ -50,16 +50,16 @@ func main() {
 	}
 
 	db, err := sql.Open("postgres", *dsn)
-
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.Close()
 
 	if *tx {
 		fmt.Printf("BEGIN;\n")
 	}
 
-	if err := pgdump.Dump(os.Stdout, db, *table, &opts); err != nil {
+	if err := pgdump.DumpStream(os.Stdout, pgdump.NewQuerier(db), *table, &opts); err != nil {
 		log.Fatal(err)
 	}
 
