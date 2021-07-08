@@ -59,9 +59,6 @@ func main() {
 		fmt.Printf("BEGIN;\n")
 	}
 
-	if err != nil {
-		log.Fatal(err)
-	}
 	if err := pgdump.DumpStream(os.Stdout, pgdump.NewQuerier(db), *table, &opts); err != nil {
 		log.Fatal(err)
 	}
