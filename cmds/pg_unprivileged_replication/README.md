@@ -59,7 +59,6 @@ tables to synchronize.
 JSON 7.0 schema types are used to describe the configuration, Go zero values of the equivalent type are considered the
 default when not otherwise specified.
 
-Top-level document keys:
 - `leaderDSN`: `postgres://` URL for the leader database. (required, `string`)
 - `followerDSN`: `postgres://` URL for the follower database. (required, `string`)
 - `run`: configuration about the service execution. (`object`)
