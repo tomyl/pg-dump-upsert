@@ -2,11 +2,10 @@ package pgdump
 
 import (
 	"bytes"
-	"database/sql"
 )
 
 // getQueryStatement returns SELECT statement to retrieve rows to dump.
-func getQueryStatement(db *sql.DB, table string, cols []column) string {
+func getQueryStatement(table string, cols []column) string {
 	var buf bytes.Buffer
 	buf.WriteString("SELECT ")
 
