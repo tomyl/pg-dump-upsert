@@ -55,7 +55,7 @@ func (col *column) bind() {
 		} else {
 			col.value = new(float64)
 		}
-	case "decimal", "numeric", "money", "character varying", "varchar", "character", "char", "text", "binary", "json", "jsonb":
+	case "decimal", "numeric", "money", "character varying", "varchar", "character", "char", "text", "binary", "json", "jsonb", "tsvector":
 		if col.Array {
 			col.value = new(pq.StringArray)
 		} else if col.Nullable {
@@ -153,7 +153,7 @@ func (col column) literal() string {
 		}
 
 		return strconv.FormatFloat(vf64, 'f', -1, 64)
-	case "decimal", "numeric", "money", "character varying", "varchar", "character", "char", "text", "binary", "json", "jsonb":
+	case "decimal", "numeric", "money", "character varying", "varchar", "character", "char", "text", "binary", "json", "jsonb", "tsvector":
 		if col.Array {
 			vs := *col.value.(*pq.StringArray)
 			if len(vs) == 0 {
