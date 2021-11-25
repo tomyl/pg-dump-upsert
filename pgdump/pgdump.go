@@ -47,12 +47,12 @@ func Dump(dumpFunc func(string) error, q Querier, table string, opts *Options) e
 	cols, err := getColumns(q, table, opts)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("get columns: %w", err)
 	}
 
 	// Verify insert/conflict columns exist
 	if err := validateColumns(cols, opts); err != nil {
-		return err
+		return fmt.Errorf("validate columns: %w", err)
 	}
 
 	// Query rows to dump
@@ -72,7 +72,7 @@ func Dump(dumpFunc func(string) error, q Querier, table string, opts *Options) e
 	rows, err := q.Query(st)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("query rows: %w", err)
 	}
 
 	defer rows.Close()
