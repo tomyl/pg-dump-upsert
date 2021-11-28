@@ -1,6 +1,6 @@
 # pg-dump-upsert :elephant::poop:
 
-[![Build Status](https://travis-ci.com/tomyl/pg-dump-upsert.svg?branch=master)](https://travis-ci.org/tomyl/pg-dump-upsert)
+![Go workflow](https://github.com/tomyl/pg-dump-upsert/actions/workflows/go.yml/badge.svg)
 [![GoDoc](https://godoc.org/github.com/tomyl/pg-dump-upsert/pgdump?status.png)](http://godoc.org/github.com/tomyl/pg-dump-upsert/pgdump)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tomyl/pg-dump-upsert)](https://goreportcard.com/report/github.com/tomyl/pg-dump-upsert)
 
