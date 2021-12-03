@@ -88,6 +88,5 @@ To restore a dump, simply use the `\i` command in `psql`.
 # TODO
 - [ ] Implement support for all Postgres data types.
 - [ ] Allow which columns to update when specifying `-conflict-column`?
-- [ ] Properly quote identifiers.
 - [ ] Unit tests would be nice...
 - [ ] Finish this TODO list.

@@ -161,7 +161,7 @@ func (col column) literal() string {
 			}
 			literals := make([]string, len(vs))
 			for i, x := range vs {
-				literals[i] = quoteString(x)
+				literals[i] = pq.QuoteLiteral(x)
 			}
 			return "ARRAY[" + strings.Join(literals, ", ") + "]"
 		}
@@ -177,7 +177,7 @@ func (col column) literal() string {
 			vstr = *col.value.(*string)
 		}
 
-		return quoteString(vstr)
+		return pq.QuoteLiteral(vstr)
 	case "timestamp without time zone", "timestamp with time zone", "date", "time without time zone", "time with time zone":
 		var ts string
 		if col.Nullable {
@@ -190,7 +190,7 @@ func (col column) literal() string {
 			ts = col.value.(*time.Time).Format("2006-01-02 15:04:05.000000-07")
 		}
 
-		return quoteString(ts)
+		return pq.QuoteLiteral(ts)
 	case "boolean":
 		if col.Array {
 			vs := *col.value.(*pq.BoolArray)
@@ -217,18 +217,13 @@ func (col column) literal() string {
 
 		return strings.ToUpper(strconv.FormatBool(vb))
 	case "uuid":
-		return quoteString(col.value.(*uuid.UUID).String())
+		return pq.QuoteLiteral(col.value.(*uuid.UUID).String())
 	default:
 		if col.Array {
 			panic("don't know how to quote array column " + col.Name + " of type " + col.Type)
 		}
 		panic("don't know how to quote column " + col.Name + " of type " + col.Type)
 	}
-}
-
-// quoteString returns an SQL string literal.
-func quoteString(s string) string {
-	return "'" + strings.Replace(s, "'", "''", -1) + "'"
 }
 
 // getColumns fetches column list for table from database.
