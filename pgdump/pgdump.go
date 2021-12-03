@@ -10,6 +10,10 @@ import (
 
 // Options type controls how INSERT statements are constructed.
 type Options struct {
+	// InsertTable is the name of the table to inert into. Defaults to the
+	// source table.
+	InsertTable string
+
 	// Custom SELECT query. Defaults to fetch all rows. Can also just specify
 	// the WHERE clause, it wil be appended to the default query.
 	Query string
@@ -38,13 +42,13 @@ func DumpStream(writer io.Writer, q Querier, table string, opts *Options) error 
 }
 
 // Dump outputs INSERT statements for all rows in specified table.
-func Dump(dumpFunc func(string) error, q Querier, table string, opts *Options) error {
+func Dump(dumpFunc func(string) error, q Querier, sourceTable string, opts *Options) error {
 	if opts == nil {
 		opts = &Options{}
 	}
 
 	// Ask database for column list for this table
-	cols, err := getColumns(q, table, opts)
+	cols, err := getColumns(q, sourceTable, opts)
 
 	if err != nil {
 		return fmt.Errorf("get columns: %w", err)
@@ -59,10 +63,10 @@ func Dump(dumpFunc func(string) error, q Querier, table string, opts *Options) e
 	st := opts.Query
 
 	if st == "" {
-		st = getQueryStatement(table, cols)
+		st = getQueryStatement(sourceTable, cols)
 	} else if strings.HasPrefix(strings.ToUpper(st), "WHERE") {
 		where := st
-		st = getQueryStatement(table, cols) + " " + where
+		st = getQueryStatement(sourceTable, cols) + " " + where
 	}
 
 	if opts.Verbose {
@@ -77,13 +81,18 @@ func Dump(dumpFunc func(string) error, q Querier, table string, opts *Options) e
 
 	defer rows.Close()
 
+	destTable := opts.InsertTable
+	if destTable == "" {
+		destTable = sourceTable
+	}
+
 	dest := getScanDest(cols)
 	count := 0
 
 	for rows.Next() {
 		if err := rows.Scan(dest...); err != nil {
 			return err
-		} else if err := dumpFunc(getInsertStatement(table, cols, opts)); err != nil {
+		} else if err := dumpFunc(getInsertStatement(destTable, cols, opts)); err != nil {
 			return err
 		}
 		count++

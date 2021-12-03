@@ -13,7 +13,8 @@ import (
 
 func main() {
 	dsn := flag.String("dsn", "", "Connection string. Example: postgres://user:password@host:5432/db")
-	table := flag.String("table", "", "Table to dump.")
+	sourceTable := flag.String("from", "", "Source table to dump.")
+	destTable := flag.String("to", "", "Table name to use in INSERT statements. Defaults to the source table.")
 	insert := flag.String("insert-columns", "", "Comma-separated list of columns to include in INSERT statement. Defaults to all columns.")
 	conflict := flag.String("conflict-column", "", "Append an ON CONFLICT clause for this column. All other columns will be included in a DO UPDATE SET list.")
 	noconflict := flag.Bool("noconflict", false, "Append ON CONFLICT DO NOTHING.")
@@ -26,8 +27,8 @@ func main() {
 		log.Fatal("-dsn not supplied")
 	}
 
-	if *table == "" {
-		log.Fatal("-table not supplied")
+	if *sourceTable == "" {
+		log.Fatal("-from not supplied")
 	}
 
 	if *noconflict && *conflict != "" {
@@ -35,6 +36,7 @@ func main() {
 	}
 
 	var opts pgdump.Options
+	opts.InsertTable = *destTable
 	opts.Query = strings.TrimSpace(*query)
 	opts.ConflictColumn = strings.TrimSpace(*conflict)
 	opts.NoConflict = *noconflict
@@ -59,7 +61,7 @@ func main() {
 		fmt.Printf("BEGIN;\n")
 	}
 
-	if err := pgdump.DumpStream(os.Stdout, pgdump.NewQuerier(db), *table, &opts); err != nil {
+	if err := pgdump.DumpStream(os.Stdout, pgdump.NewQuerier(db), *sourceTable, &opts); err != nil {
 		log.Fatal(err)
 	}
 

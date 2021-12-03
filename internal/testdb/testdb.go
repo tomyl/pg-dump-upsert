@@ -13,40 +13,57 @@ import (
 
 const env = "PGDUMP_TEST_DSN"
 
-func New(t *testing.T) *sql.DB {
+type DB struct {
+	*sql.DB
+	dsnurl *url.URL
+	t      *testing.T
+}
+
+func (db *DB) TempDatabase() *sql.DB {
+	dbname := fmt.Sprintf("pgdump_%d", time.Now().UnixNano())
+	db.t.Logf("Creating database %q", dbname)
+	_, err := db.Exec(`create database ` + dbname)
+	require.NoError(db.t, err)
+
+	db.t.Cleanup(func() {
+		db.t.Logf("Dropping database %q", dbname)
+		_, err = db.Exec(`drop database ` + dbname)
+		require.NoError(db.t, err)
+	})
+
+	tempurl := *db.dsnurl
+	tempurl.Path = "/" + dbname
+	tempdsn := tempurl.String()
+
+	tempdb, err := sql.Open("postgres", tempdsn)
+	require.NoError(db.t, err)
+
+	db.t.Cleanup(func() {
+		require.NoError(db.t, tempdb.Close())
+	})
+
+	return tempdb
+}
+
+func New(t *testing.T) *DB {
 	ownerdsn := os.Getenv(env)
 	if ownerdsn == "" {
 		t.Skipf("%s not set", env)
 	}
 
-	dburl, err := url.Parse(ownerdsn)
+	dsnurl, err := url.Parse(ownerdsn)
 	require.NoError(t, err)
 
 	ownerdb, err := sql.Open("postgres", ownerdsn)
 	require.NoError(t, err)
+
 	t.Cleanup(func() {
 		require.NoError(t, ownerdb.Close())
 	})
 
-	dbname := fmt.Sprintf("pgdump_%d", time.Now().UnixNano())
-	t.Logf("Creating database %q", dbname)
-	_, err = ownerdb.Exec(`create database ` + dbname)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		t.Logf("Dropping database %q", dbname)
-		_, err = ownerdb.Exec(`drop database ` + dbname)
-		require.NoError(t, err)
-	})
-
-	dburl.Path = "/" + dbname
-	testdsn := dburl.String()
-
-	testdb, err := sql.Open("postgres", testdsn)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, testdb.Close())
-	})
-
-	return testdb
+	return &DB{
+		DB:     ownerdb,
+		dsnurl: dsnurl,
+		t:      t,
+	}
 }

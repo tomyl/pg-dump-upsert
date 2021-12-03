@@ -20,22 +20,24 @@ seemingly unrelated failures.
 # Installation
 
 ```bash
-$ go get github.com/tomyl/pg-dump-upsert
-$ ~/go/bin/pg-dump-upsert -h
+$ go install github.com/tomyl/pg-dump-upsert@latest
+$ pg-dump-upsert -h
 Usage of pg-dump-upsert:
   -conflict-column string
         Append an ON CONFLICT clause for this column. All other columns will be included in a DO UPDATE SET list.
   -dsn string
         Connection string. Example: postgres://user:password@host:5432/db
+  -from string
+        Source table to dump.
   -insert-columns string
         Comma-separated list of columns to include in INSERT statement. Defaults to all columns.
   -noconflict
         Append ON CONFLICT DO NOTHING.
   -query string
         Use custom SELECT query. By default fetches all rows. Note that column order must match -insert-columns. It is also valid to just specify a WHERE clause. It will be appended to the default query.
-  -table string
-        Table to dump.
-  -tx
+  -to string
+        Table name to use in INSERT statements. Defaults to the source table.
+  -tx   
         Wrap INSERT statements in transaction.
   -verbose
         Log query statement to stderr.
@@ -46,7 +48,7 @@ Usage of pg-dump-upsert:
 Dump all rows in table `employee`:
 
 ```bash
-$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee 
+$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -from employee 
 INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456);
 ...
 ```
@@ -54,7 +56,7 @@ INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10
 Choose which columns to dump:
 
 ```bash
-$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -insert-columns id,name
+$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -from employee -insert-columns id,name
 INSERT INTO employee (id, name) VALUES (1, 'Jane Doe');
 ...
 ```
@@ -62,7 +64,7 @@ INSERT INTO employee (id, name) VALUES (1, 'Jane Doe');
 Ignore conflicts:
 
 ```bash
-$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -noconflict
+$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -from employee -noconflict
 INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe' 123456) ON CONFLICT DO NOTHING;
 ...
 ```
@@ -70,7 +72,7 @@ INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10
 Update columns on conflict:
 
 ```bash
-$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -conflict-column id
+$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -from employee -conflict-column id
 INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456) ON CONFLICT (id) DO UPDATE SET created_at=EXCLUDED.created_at, name=EXCLUDED.name;
 ...
 ```
@@ -78,8 +80,16 @@ INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10
 Fetch a subset of the rows:
 
 ```bash
-$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -table employee -query "WHERE salary > 12345"
+$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -from employee -query "WHERE salary > 12345"
 INSERT INTO employee (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456);
+...
+```
+
+Use a different table name in the `INSERT` statements:
+
+```bash
+$ pg-dump-upsert -dsn "postgres://user:password@host:5432/db" -from employee -to minions
+INSERT INTO minions (id, created_at, name, salary) VALUES (1, '2018-06-13 21:10:34.769555+08', 'Jane Doe', 123456);
 ...
 ```
 
