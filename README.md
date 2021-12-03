@@ -97,6 +97,7 @@ To restore a dump, simply use the `\i` command in `psql`.
 
 # TODO
 - [ ] Implement support for all Postgres data types.
+- [ ] Skip generated columns when dumping views.
 - [ ] Allow which columns to update when specifying `-conflict-column`?
-- [ ] Unit tests would be nice...
+- [ ] More unit tests would be nice...
 - [ ] Finish this TODO list.
