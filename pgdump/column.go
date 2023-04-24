@@ -86,7 +86,7 @@ func (col *column) bind() {
 			panic("don't know how to bind array column " + col.Name + " of type " + col.Type)
 		} else if col.Nullable {
 			// FIXME
-			panic("don't know how to bind nullable column " + col.Name + " of type " + col.Type)
+			col.value = new(uuid.NullUUID)
 		} else {
 			col.value = new(uuid.UUID)
 		}
@@ -217,7 +217,18 @@ func (col column) literal() string {
 
 		return strings.ToUpper(strconv.FormatBool(vb))
 	case "uuid":
-		return pq.QuoteLiteral(col.value.(*uuid.UUID).String())
+		var result uuid.UUID
+		if col.Nullable {
+			if v := col.value.(*uuid.NullUUID); v.Valid {
+				result = v.UUID
+			} else {
+				return "NULL"
+			}
+		} else {
+			result = *col.value.(*uuid.UUID)
+		}
+
+		return pq.QuoteLiteral(result.String())
 	default:
 		if col.Array {
 			panic("don't know how to quote array column " + col.Name + " of type " + col.Type)
