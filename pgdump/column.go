@@ -136,7 +136,7 @@ func (col column) literal() string {
 			}
 			literals := make([]string, len(vs))
 			for i, x := range vs {
-				literals[i] = strconv.FormatFloat(x, 10, -1, 64)
+				literals[i] = strconv.FormatFloat(x, 'e', -1, 64)
 			}
 			return "ARRAY[" + strings.Join(literals, ", ") + "]"
 		}

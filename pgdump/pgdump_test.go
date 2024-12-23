@@ -19,6 +19,7 @@ create table mytable (
     mytimestamptz timestamptz not null default current_timestamp,
     mytext text not null,
     myinteger integer not null,
+    myfloat double precision not null,
     camelCase1 text,
     "camelCase2" text,
     mytsvector tsvector,
@@ -32,6 +33,7 @@ create table mytable (
     mytimestamptz timestamptz not null default current_timestamp,
     mytext text not null,
     myinteger integer not null,
+    myfloat double precision not null,
     camelCase1 text,
     "camelCase2" text,
     mytsvector tsvector
@@ -39,8 +41,8 @@ create table mytable (
 `
 
 	rows = `
-insert into mytable (myid, mytext, myinteger, mytsvector) values (1, 'Alice', 123456, to_tsvector('english', 'The Fat Rats'));
-insert into mytable (myid, mytext, myinteger) values (2, 'Bob', 90000);
+insert into mytable (myid, mytext, myinteger, myfloat, mytsvector) values (1, 'Alice', 123456, 1234567.89, to_tsvector('english', 'The Fat Rats'));
+insert into mytable (myid, mytext, myinteger, myfloat) values (2, 'Bob', 90000, -1);
 `
 )
 
