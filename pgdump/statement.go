@@ -31,22 +31,28 @@ func getQueryStatement(table string, cols []column) string {
 func getInsertStatement(table string, cols []column, opts *Options) string {
 	var buf bytes.Buffer
 
-	buf.WriteString("INSERT INTO " + table + " (")
-	count := 0
+	buf.WriteString("INSERT INTO " + table)
 
-	for _, col := range cols {
-		if col.insert {
-			if count > 0 {
-				buf.WriteString(", ")
+	if !opts.SkipColnamesInsert {
+		buf.WriteString(" (")
+
+		count := 0
+		for _, col := range cols {
+			if col.insert {
+				if count > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(quoteColumn(col.Name))
+				count++
 			}
-			buf.WriteString(quoteColumn(col.Name))
-			count++
 		}
+
+		buf.WriteString(")")
 	}
 
-	buf.WriteString(") VALUES (")
-	count = 0
+	buf.WriteString(" VALUES (")
 
+	count := 0
 	for _, col := range cols {
 		if col.insert {
 			if count > 0 {

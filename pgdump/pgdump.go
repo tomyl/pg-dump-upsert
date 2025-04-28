@@ -21,6 +21,9 @@ type Options struct {
 	// Which columns to include in INSERT statement. Defaults to all columns if empty.
 	InsertColumns []string
 
+	// Skip the column names at the INSERT statements and only use VALUES
+	SkipColnamesInsert bool
+
 	// Append a ON CONFLICT clause for this column. All other columns will end
 	// up in a DO UPDATE SET list.
 	ConflictColumn string
