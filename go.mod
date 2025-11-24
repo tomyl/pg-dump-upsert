@@ -7,5 +7,5 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/lib/pq v1.4.0
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/net v0.33.0
+	golang.org/x/net v0.38.0
 )
