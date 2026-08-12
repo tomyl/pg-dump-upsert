@@ -16,6 +16,7 @@ func main() {
 	sourceTable := flag.String("from", "", "Source table to dump.")
 	destTable := flag.String("to", "", "Table name to use in INSERT statements. Defaults to the source table.")
 	insert := flag.String("insert-columns", "", "Comma-separated list of columns to include in INSERT statement. Defaults to all columns.")
+	skipcolnamesinsert := flag.Bool("skip-colnames-insert", false, "Skip the column names at the INSERT statements and only use VALUES.")
 	conflict := flag.String("conflict-column", "", "Append an ON CONFLICT clause for this column. All other columns will be included in a DO UPDATE SET list.")
 	noconflict := flag.Bool("noconflict", false, "Append ON CONFLICT DO NOTHING.")
 	tx := flag.Bool("tx", false, "Wrap INSERT statements in transaction.")
@@ -40,6 +41,7 @@ func main() {
 	opts.Query = strings.TrimSpace(*query)
 	opts.ConflictColumn = strings.TrimSpace(*conflict)
 	opts.NoConflict = *noconflict
+	opts.SkipColnamesInsert = *skipcolnamesinsert
 	opts.Verbose = *verbose
 
 	if *insert != "" {

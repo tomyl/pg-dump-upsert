@@ -245,7 +245,7 @@ func getColumns(q Querier, table string, opts *Options) ([]column, error) {
 		LEFT OUTER JOIN information_schema.element_types e
 			ON (c.table_catalog, c.table_schema, c.table_name, 'TABLE', c.dtd_identifier)
 				= (e.object_catalog, e.object_schema, e.object_name, e.object_type, e.collection_type_identifier)
-		WHERE table_name = $1 AND c.is_generated = 'NEVER'
+		WHERE c.table_schema||'.'||c.table_name = $1 AND c.is_generated = 'NEVER'
 	`, table)
 	if err != nil {
 		return nil, err
